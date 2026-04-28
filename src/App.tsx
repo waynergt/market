@@ -3,6 +3,7 @@ import { Sidebar } from './components/Sidebar';
 import { Inventory } from './components/Inventory';
 import { ReceiveGoods } from './components/ReceiveGoods';
 import { POS } from './components/POS'; // Importamos el nuevo componente
+import { Dashboard } from './components/Dashboard';
 import './index.css';
 
 function App() {
@@ -12,6 +13,8 @@ function App() {
   // Función para renderizar el contenido principal dinámicamente
   const renderContent = () => {
     switch (activeTab) {
+      case 'dashboard':
+  return <Dashboard />;
       case 'pos':
         return <POS />;
       case 'inventory':

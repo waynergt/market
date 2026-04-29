@@ -1,1 +1,22 @@
 @import "tailwindcss";
+
+@media print {
+  /* Ocultar todo por defecto */
+  body * {
+    visibility: hidden;
+  }
+  /* Mostrar solo el contenedor del ticket y sus hijos */
+  .print\:block, .print\:block * {
+    visibility: visible;
+  }
+  .print\:block {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  /* Quitar márgenes de página del navegador (encabezado/pie de página) */
+  @page {
+    margin: 0;
+  }
+}

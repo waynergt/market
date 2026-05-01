@@ -6,8 +6,8 @@ import {
   ShoppingBag, 
   DollarSign,
   PackageCheck,
-  ArrowUpRight,
-  ArrowDownRight
+  ArrowUpRight
+  // Se eliminó ArrowDownRight de aquí para limpiar la advertencia
 } from 'lucide-react';
 
 interface Stats {
@@ -156,7 +156,6 @@ export const Dashboard = () => {
             Productos a punto de agotarse
           </h4>
           <div className="space-y-4">
-            {/* Aquí podrías hacer un map de los productos con stock < 5 */}
             <p className="text-sm text-gray-500 italic">Próximamente: Lista detallada de reposición automática.</p>
           </div>
         </div>

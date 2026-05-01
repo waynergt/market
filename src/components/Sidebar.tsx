@@ -1,6 +1,16 @@
 import { 
-  Package, ClipboardList, LayoutDashboard, Settings, 
-  Menu, X, ShoppingCart, History, LogOut, ShieldCheck, User 
+  Package, 
+  ClipboardList, 
+  LayoutDashboard, 
+  Settings, 
+  Menu, 
+  X, 
+  ShoppingCart, 
+  History, 
+  LogOut, 
+  ShieldCheck, 
+  User,
+  FileCheck // Icono para Corte de Caja
 } from 'lucide-react';
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
@@ -8,16 +18,17 @@ import { supabase } from '../lib/supabase';
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  userRole: string; // Nueva prop para saber el rol
+  userRole: string;
 }
 
 export const Sidebar = ({ activeTab, setActiveTab, userRole }: SidebarProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Filtramos los items del menú según el rol
+  // Lista de navegación con roles y el nuevo Corte de Caja
   const menuItems = [
     { id: 'pos', label: 'Venta/Caja', icon: ShoppingCart, roles: ['admin', 'vendedor'] },
     { id: 'history', label: 'Historial', icon: History, roles: ['admin', 'vendedor'] },
+    { id: 'closing', label: 'Corte de Caja', icon: FileCheck, roles: ['admin'] },
     { id: 'inventory', label: 'Inventario', icon: Package, roles: ['admin'] },
     { id: 'receive', label: 'Carga Facturas', icon: ClipboardList, roles: ['admin'] },
     { id: 'dashboard', label: 'Panel Control', icon: LayoutDashboard, roles: ['admin'] },
@@ -30,7 +41,10 @@ export const Sidebar = ({ activeTab, setActiveTab, userRole }: SidebarProps) => 
 
   return (
     <>
-      <button onClick={() => setIsOpen(!isOpen)} className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-blue-600 text-white rounded-lg shadow-lg">
+      <button 
+        onClick={() => setIsOpen(!isOpen)} 
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-blue-600 text-white rounded-lg shadow-lg"
+      >
         {isOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
 
@@ -46,13 +60,14 @@ export const Sidebar = ({ activeTab, setActiveTab, userRole }: SidebarProps) => 
 
           <nav className="flex-1 space-y-2">
             {menuItems.map((item) => (
-              // SOLO MOSTRAR SI EL ROL TIENE PERMISO
               item.roles.includes(userRole) && (
                 <button
                   key={item.id}
                   onClick={() => { setActiveTab(item.id); setIsOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all duration-200
-                    ${activeTab === item.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-gray-400 hover:bg-gray-50'}`}
+                    ${activeTab === item.id 
+                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-100 scale-[1.02]' 
+                      : 'text-gray-400 hover:bg-gray-50 hover:text-gray-600'}`}
                 >
                   <item.icon size={20} />
                   <span className="text-sm">{item.label}</span>
@@ -62,7 +77,6 @@ export const Sidebar = ({ activeTab, setActiveTab, userRole }: SidebarProps) => 
           </nav>
 
           <div className="mt-auto space-y-4">
-            {/* Info del Usuario con su Rol */}
             <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
               <div className="flex items-center gap-2 mb-1">
                 {userRole === 'admin' ? <ShieldCheck size={14} className="text-blue-600" /> : <User size={14} className="text-gray-400" />}
@@ -71,7 +85,6 @@ export const Sidebar = ({ activeTab, setActiveTab, userRole }: SidebarProps) => 
               <p className="text-sm font-bold text-gray-700 truncate">Usuario Activo</p>
             </div>
 
-            {/* Botón de Salida Real */}
             <button 
               onClick={handleLogout}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-red-400 hover:bg-red-50 hover:text-red-600 transition-all"
@@ -82,6 +95,10 @@ export const Sidebar = ({ activeTab, setActiveTab, userRole }: SidebarProps) => 
           </div>
         </div>
       </aside>
+
+      {isOpen && (
+        <div onClick={() => setIsOpen(false)} className="fixed inset-0 bg-black/30 backdrop-blur-sm z-30 lg:hidden"></div>
+      )}
     </>
   );
 };

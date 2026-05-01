@@ -6,17 +6,16 @@ import { ReceiveGoods } from './components/ReceiveGoods';
 import { POS } from './components/POS';
 import { Dashboard } from './components/Dashboard';
 import { SalesHistory } from './components/SalesHistory';
+import { CashClosing } from './components/CashClosing'; // Importado
 import { Auth } from './components/Auth';
 import './index.css';
 
 function App() {
   const [session, setSession] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('pos');
-  const [role, setRole] = useState('vendedor'); // Rol por defecto
+  const [role, setRole] = useState('vendedor');
 
-  // Escuchar cambios en la sesión y metadatos (Rol)
   useEffect(() => {
-    // Carga inicial
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) {
@@ -24,7 +23,6 @@ function App() {
       }
     });
 
-    // Escucha en tiempo real
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session) {
@@ -35,24 +33,18 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Si no hay sesión, mostramos la pantalla de login
   if (!session) {
     return <Auth />;
   }
 
-  // Lógica de renderizado de componentes
   const renderContent = () => {
     switch (activeTab) {
-      case 'pos': 
-        return <POS />;
-      case 'inventory': 
-        return <Inventory />;
-      case 'receive': 
-        return <ReceiveGoods />;
-      case 'dashboard': 
-        return <Dashboard />;
-      case 'history': 
-        return <SalesHistory />;
+      case 'pos': return <POS />;
+      case 'inventory': return <Inventory />;
+      case 'receive': return <ReceiveGoods />;
+      case 'dashboard': return <Dashboard />;
+      case 'history': return <SalesHistory />;
+      case 'closing': return <CashClosing />; // Agregado al switch
       case 'settings':
         return (
           <div className="p-20 text-center text-gray-400">
@@ -66,22 +58,18 @@ function App() {
             </button>
           </div>
         );
-      default: 
-        return <POS />;
+      default: return <POS />;
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Sidebar con conocimiento del Rol para ocultar botones */}
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} userRole={role} />
       
       <div className="lg:ml-64 transition-all duration-300">
         <main className="p-4 md:p-0">
-          {/* PROTECCIÓN DE RUTAS: 
-              Si el tab activo es administrativo y el usuario es vendedor,
-              forzamos la vista del POS para que no vea datos sensibles. */}
-          {(activeTab === 'dashboard' || activeTab === 'inventory' || activeTab === 'receive') && role !== 'admin' 
+          {/* PROTECCIÓN: Añadida la pestaña 'closing' a la lista restringida para vendedores */}
+          {(activeTab === 'dashboard' || activeTab === 'inventory' || activeTab === 'receive' || activeTab === 'closing') && role !== 'admin' 
             ? <POS /> 
             : renderContent()}
         </main>

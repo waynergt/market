@@ -40,7 +40,8 @@ function App() {
 
   const renderContent = () => {
     return (
-      <div key={activeTab} className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+      /* Usamos nuestra nueva animación personalizada */
+      <div key={activeTab} className="animate-fade-up">
         {(() => {
           switch (activeTab) {
             case 'inv_report': return <InventoryReport />;
@@ -54,11 +55,11 @@ function App() {
               return (
                 <div className="p-20 text-center flex flex-col items-center justify-center min-h-[60vh]">
                   <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-gray-100">
-                    <h2 className="text-3xl font-black text-gray-800 italic uppercase tracking-tighter">Configuración</h2>
+                    <h2 className="text-3xl font-black text-gray-800 italic uppercase tracking-tighter text-green-700">Configuración</h2>
                     <p className="text-gray-500 mt-2 font-medium">Gestiona tu cuenta de Del Sol Market</p>
                     <button 
                       onClick={() => supabase.auth.signOut()}
-                      className="mt-8 bg-red-50 text-red-600 px-10 py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-lg shadow-red-100"
+                      className="mt-8 bg-red-50 text-red-600 px-10 py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-lg"
                     >
                       Cerrar Sesión Activa
                     </button>

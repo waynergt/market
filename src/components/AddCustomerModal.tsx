@@ -34,10 +34,11 @@ export const AddCustomerModal = ({ isOpen, onClose, onSuccess, initialNit }: any
 
   return (
     <div className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl animate-in zoom-in duration-200">
+      <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl animate-in zoom-in duration-200 border border-gray-100">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-black text-gray-800 flex items-center gap-2">
-            <UserPlus className="text-blue-600" /> Nuevo Cliente
+          <h2 className="text-xl font-black text-gray-800 flex items-center gap-2 italic">
+            {/* Ícono actualizado a Verde Principal */}
+            <UserPlus className="text-green-700" /> Nuevo Cliente
           </h2>
           <button onClick={onClose} className="text-gray-400 hover:text-red-500 transition-colors">
             <X size={24} />
@@ -46,11 +47,12 @@ export const AddCustomerModal = ({ isOpen, onClose, onSuccess, initialNit }: any
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">NIT</label>
+            {/* Label del NIT con toque Naranja del logo */}
+            <label className="text-[10px] font-black text-orange-500 uppercase tracking-widest ml-1">NIT</label>
             <input 
               required 
               type="text" 
-              className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-blue-500 outline-none transition-all" 
+              className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-green-700 focus:bg-white outline-none transition-all font-medium" 
               value={formData.nit} 
               onChange={e => setFormData({...formData, nit: e.target.value})} 
             />
@@ -60,7 +62,7 @@ export const AddCustomerModal = ({ isOpen, onClose, onSuccess, initialNit }: any
             <input 
               required 
               type="text" 
-              className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-blue-500 outline-none transition-all" 
+              className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-green-700 focus:bg-white outline-none transition-all font-medium" 
               value={formData.name} 
               onChange={e => setFormData({...formData, name: e.target.value})} 
             />
@@ -69,14 +71,16 @@ export const AddCustomerModal = ({ isOpen, onClose, onSuccess, initialNit }: any
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Dirección (Opcional)</label>
             <input 
               type="text" 
-              className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-blue-500 outline-none transition-all" 
+              className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-green-700 focus:bg-white outline-none transition-all font-medium" 
               value={formData.address} 
               onChange={e => setFormData({...formData, address: e.target.value})} 
             />
           </div>
+
+          {/* Botón Principal en Verde con hover en Verde Oscuro */}
           <button 
             type="submit" 
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-100 transition-all active:scale-95 mt-4"
+            className="w-full bg-green-700 hover:bg-green-900 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-green-100 transition-all active:scale-95 mt-4"
           >
             <Save size={20} /> Guardar y Seleccionar
           </button>

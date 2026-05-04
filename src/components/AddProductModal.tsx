@@ -23,10 +23,9 @@ export const AddProductModal = ({ isOpen, onClose, onSuccess }: Props) => {
 
   if (!isOpen) return null;
 
-  // --- FUNCIÓN DE CIERRE SEGURO ---
   const handleClose = () => {
-    setShowScanner(false); // Primero apagamos el componente del scanner
-    onClose(); // Luego cerramos el modal
+    setShowScanner(false);
+    onClose();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -49,31 +48,33 @@ export const AddProductModal = ({ isOpen, onClose, onSuccess }: Props) => {
       alert("Error al guardar: " + error.message);
     } else {
       onSuccess();
-      handleClose(); // Usamos handleClose para limpiar todo al terminar
+      handleClose();
       setFormData({ barcode: '', name: '', category: '', cost_price: '', selling_price: '', stock: '' });
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-        <div className="p-6 border-b flex justify-between items-center bg-blue-600 text-white">
-          <h2 className="text-xl font-bold">Nuevo Producto</h2>
-          {/* Botón de cerrar actualizado con handleClose */}
-          <button onClick={handleClose} className="hover:bg-blue-700 p-1 rounded-full transition-colors">
-            <X />
+      <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border border-gray-100">
+        
+        {/* Encabezado en Verde Principal */}
+        <div className="p-6 border-b flex justify-between items-center bg-green-700 text-white">
+          <h2 className="text-xl font-black italic uppercase tracking-tight">Nuevo Producto</h2>
+          <button onClick={handleClose} className="hover:bg-green-900 p-2 rounded-full transition-colors">
+            <X size={20} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-              <Barcode size={16}/> Código de Barras
+            {/* Label con toque Naranja para el código */}
+            <label className="text-[10px] font-black text-orange-500 uppercase tracking-widest ml-1 flex items-center gap-2">
+              <Barcode size={14}/> Código de Barras
             </label>
             <div className="flex gap-2">
               <input 
                 required
-                className="flex-1 border p-2 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                className="flex-1 border-2 border-transparent bg-gray-50 p-3 rounded-2xl focus:ring-2 focus:ring-green-700 focus:bg-white outline-none transition-all font-medium"
                 value={formData.barcode}
                 onChange={(e) => setFormData({...formData, barcode: e.target.value})}
                 placeholder="Escanea o escribe el código"
@@ -81,21 +82,21 @@ export const AddProductModal = ({ isOpen, onClose, onSuccess }: Props) => {
               <button 
                 type="button"
                 onClick={() => setShowScanner(!showScanner)}
-                className={`px-4 rounded-lg flex items-center gap-2 transition-colors font-medium ${
+                className={`px-6 rounded-2xl flex items-center gap-2 transition-all font-bold active:scale-95 ${
                     showScanner 
                     ? 'bg-red-100 text-red-600 hover:bg-red-200' 
-                    : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                    : 'bg-green-100 text-green-700 hover:bg-green-200'
                 }`}
               >
-                {showScanner ? 'Cerrar Cámara' : 'Cámara'}
+                {showScanner ? 'Cerrar' : 'Cámara'}
               </button>
             </div>
             
             {showScanner && (
-              <div className="mt-2">
+              <div className="mt-2 rounded-2xl overflow-hidden border-2 border-green-700">
                 <BarcodeScanner onScan={(code) => {
                   setFormData({...formData, barcode: code});
-                  setShowScanner(false); // Se apaga automáticamente al detectar
+                  setShowScanner(false);
                 }} />
               </div>
             )}
@@ -103,44 +104,46 @@ export const AddProductModal = ({ isOpen, onClose, onSuccess }: Props) => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
-              <label className="text-sm font-semibold text-gray-700">Nombre del Producto</label>
-              <input required className="w-full border p-2 rounded-lg mt-1 outline-none focus:ring-2 focus:ring-blue-500" 
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nombre del Producto</label>
+              <input required className="w-full border-2 border-transparent bg-gray-50 p-3 rounded-2xl mt-1 focus:ring-2 focus:ring-green-700 focus:bg-white outline-none transition-all font-medium" 
                 value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
             </div>
             
             <div>
-              <label className="text-sm font-semibold text-gray-700">Precio Costo (Q)</label>
-              <input type="number" step="0.01" required className="w-full border p-2 rounded-lg mt-1 outline-none focus:ring-2 focus:ring-blue-500" 
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Precio Costo (Q)</label>
+              <input type="number" step="0.01" required className="w-full border-2 border-transparent bg-gray-50 p-3 rounded-2xl mt-1 focus:ring-2 focus:ring-green-700 focus:bg-white outline-none transition-all font-medium" 
                 value={formData.cost_price} onChange={(e) => setFormData({...formData, cost_price: e.target.value})} />
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-gray-700">Precio Venta (Q)</label>
-              <input type="number" step="0.01" required className="w-full border p-2 rounded-lg mt-1 outline-none focus:ring-2 focus:ring-blue-500" 
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Precio Venta (Q)</label>
+              <input type="number" step="0.01" required className="w-full border-2 border-transparent bg-gray-50 p-3 rounded-2xl mt-1 focus:ring-2 focus:ring-green-700 focus:bg-white outline-none transition-all font-medium text-green-700 font-bold" 
                 value={formData.selling_price} onChange={(e) => setFormData({...formData, selling_price: e.target.value})} />
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-gray-700">Stock Inicial</label>
-              <input type="number" required className="w-full border p-2 rounded-lg mt-1 outline-none focus:ring-2 focus:ring-blue-500" 
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Stock Inicial</label>
+              <input type="number" required className="w-full border-2 border-transparent bg-gray-50 p-3 rounded-2xl mt-1 focus:ring-2 focus:ring-green-700 focus:bg-white outline-none transition-all font-medium" 
                 value={formData.stock} onChange={(e) => setFormData({...formData, stock: e.target.value})} />
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-gray-700">Categoría</label>
-              <select className="w-full border p-2 rounded-lg mt-1 outline-none focus:ring-2 focus:ring-blue-500" 
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Categoría</label>
+              <select className="w-full border-2 border-transparent bg-gray-50 p-3 rounded-2xl mt-1 focus:ring-2 focus:ring-green-700 focus:bg-white outline-none transition-all font-medium cursor-pointer appearance-none" 
                 value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})}>
                 <option value="">Seleccionar...</option>
                 <option value="Bebidas">Bebidas</option>
                 <option value="Snacks">Snacks</option>
                 <option value="Comida">Comida</option>
+                <option value="Limpieza">Limpieza</option>
+                <option value="Otros">Otros</option>
               </select>
             </div>
           </div>
 
           <button 
             disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all mt-4 active:scale-[0.98]"
+            className="w-full bg-green-700 hover:bg-green-900 text-white font-bold py-4 rounded-2xl shadow-lg shadow-green-100 flex items-center justify-center gap-2 transition-all mt-4 active:scale-95 disabled:opacity-50"
           >
             {loading ? <Loader2 className="animate-spin" /> : <Save size={20} />}
             Guardar Producto

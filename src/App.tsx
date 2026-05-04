@@ -8,6 +8,7 @@ import { Dashboard } from './components/Dashboard';
 import { SalesHistory } from './components/SalesHistory';
 import { CashClosing } from './components/CashClosing'; // Importado
 import { Auth } from './components/Auth';
+import { InventoryReport } from './components/InventoryReport';
 import './index.css';
 
 function App() {
@@ -39,6 +40,8 @@ function App() {
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'inv_report':
+  return <InventoryReport />;
       case 'pos': return <POS />;
       case 'inventory': return <Inventory />;
       case 'receive': return <ReceiveGoods />;

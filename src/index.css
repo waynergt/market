@@ -1,22 +1,38 @@
 @import "tailwindcss";
 
 @media print {
-  /* Ocultar todo por defecto */
+  /* 1. Ocultamos todo el contenido que no sea para imprimir */
   body * {
     visibility: hidden;
-  }
-  /* Mostrar solo el contenedor del ticket y sus hijos */
-  .print\:block, .print\:block * {
-    visibility: visible;
-  }
-  .print\:block {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-  }
-  /* Quitar márgenes de página del navegador (encabezado/pie de página) */
-  @page {
     margin: 0;
+  }
+
+  /* 2. Hacemos visible solo el bloque de impresión y sus hijos */
+  .print\:block, 
+  .print\:block * {
+    visibility: visible !important;
+  }
+
+  /* 3. Posicionamos el bloque de impresión al puro inicio de la hoja */
+  .print\:block {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+
+  /* 4. Ajustes de la página para evitar márgenes raros del navegador */
+  @page {
+    margin: 0.5cm;
+    size: auto;
+  }
+
+  /* 5. Eliminamos sombras y fondos innecesarios para ahorrar tinta */
+  .print\:block {
+    box-shadow: none !important;
+    border: none !important;
   }
 }

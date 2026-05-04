@@ -1,0 +1,87 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
+import { X, UserPlus, Save } from 'lucide-react';
+
+export const AddCustomerModal = ({ isOpen, onClose, onSuccess, initialNit }: any) => {
+  const [formData, setFormData] = useState({ 
+    nit: '', 
+    name: '', 
+    address: 'Ciudad' 
+  });
+
+  // Efecto para actualizar el NIT si viene desde el buscador del POS
+  useEffect(() => {
+    if (initialNit) {
+      setFormData(prev => ({ ...prev, nit: initialNit }));
+    }
+  }, [initialNit, isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e: any) => {
+    e.preventDefault();
+    const { data, error } = await supabase
+      .from('customers')
+      .insert([formData])
+      .select()
+      .single();
+
+    if (error) return alert("Error al guardar cliente: " + error.message);
+    
+    onSuccess(data); // Devolvemos el objeto completo del cliente
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl animate-in zoom-in duration-200">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-black text-gray-800 flex items-center gap-2">
+            <UserPlus className="text-blue-600" /> Nuevo Cliente
+          </h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-red-500 transition-colors">
+            <X size={24} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">NIT</label>
+            <input 
+              required 
+              type="text" 
+              className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-blue-500 outline-none transition-all" 
+              value={formData.nit} 
+              onChange={e => setFormData({...formData, nit: e.target.value})} 
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nombre Completo</label>
+            <input 
+              required 
+              type="text" 
+              className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-blue-500 outline-none transition-all" 
+              value={formData.name} 
+              onChange={e => setFormData({...formData, name: e.target.value})} 
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Dirección (Opcional)</label>
+            <input 
+              type="text" 
+              className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-blue-500 outline-none transition-all" 
+              value={formData.address} 
+              onChange={e => setFormData({...formData, address: e.target.value})} 
+            />
+          </div>
+          <button 
+            type="submit" 
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-100 transition-all active:scale-95 mt-4"
+          >
+            <Save size={20} /> Guardar y Seleccionar
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};

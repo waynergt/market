@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { BarcodeScanner } from './BarcodeScanner';
 import { 
@@ -13,6 +13,9 @@ import {
   Smartphone,
   Plus,
   X,
+  Layers,
+  Hash,
+  Check
 } from 'lucide-react';
 
 interface PendingItem {
@@ -29,6 +32,12 @@ export const ReceiveGoods = () => {
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [manualBarcode, setManualBarcode] = useState('');
   const [items, setItems] = useState<PendingItem[]>([]);
+  
+  // Estados para predicciones
+  const [categories, setCategories] = useState<string[]>([]);
+  const [suppliers, setSuppliers] = useState<string[]>([]);
+  const [showSupplierSuggestions, setShowSupplierSuggestions] = useState(false);
+  const supplierContainerRef = useRef<HTMLDivElement>(null);
 
   // Estados para el nuevo producto
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -37,8 +46,41 @@ export const ReceiveGoods = () => {
     barcode: '',
     selling_price: 0,
     cost_price: 0,
-    category: 'General'
+    category: '',
+    initial_quantity: 1
   });
+
+  // Cerrar sugerencias al hacer clic afuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (supplierContainerRef.current && !supplierContainerRef.current.contains(event.target as Node)) {
+        setShowSupplierSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    fetchCategories();
+    fetchSuppliers();
+  }, []);
+
+  const fetchCategories = async () => {
+    const { data, error } = await supabase.from('products').select('category');
+    if (data && !error) {
+      const uniqueCats = Array.from(new Set(data.map(p => p.category).filter(Boolean)));
+      setCategories(uniqueCats as string[]);
+    }
+  };
+
+  const fetchSuppliers = async () => {
+    const { data, error } = await supabase.from('purchases').select('supplier_name');
+    if (data && !error) {
+      const uniqueSuppliers = Array.from(new Set(data.map(p => p.supplier_name).filter(Boolean)));
+      setSuppliers(uniqueSuppliers as string[]);
+    }
+  };
 
   useEffect(() => {
     let barcodeBuffer = '';
@@ -75,14 +117,10 @@ export const ReceiveGoods = () => {
       .eq('barcode', cleanCode)
       .maybeSingle();
 
-    if (error) {
-      console.error(error);
-      return;
-    }
+    if (error) return console.error(error);
 
     if (!data) {
-      // SI NO EXISTE: Preparamos los datos y abrimos el modal de registro rápido
-      setNewProductData({ ...newProductData, barcode: cleanCode });
+      setNewProductData({ ...newProductData, barcode: cleanCode, initial_quantity: 1, category: '' });
       setIsAddModalOpen(true);
       setShowScanner(false);
       return;
@@ -103,11 +141,10 @@ export const ReceiveGoods = () => {
 
   const handleQuickAddProduct = async () => {
     if (!newProductData.name || newProductData.selling_price <= 0) {
-      alert("Por favor completa el nombre y precio de venta");
+      alert("Completa el nombre y precio de venta");
       return;
     }
 
-    // 1. Guardar en la base de datos
     const { data, error } = await supabase
       .from('products')
       .insert([{
@@ -115,30 +152,27 @@ export const ReceiveGoods = () => {
         barcode: newProductData.barcode,
         selling_price: newProductData.selling_price,
         cost_price: newProductData.cost_price,
-        category: newProductData.category,
-        stock: 0 // Iniciamos en 0 porque la factura sumará la cantidad recibida
+        category: newProductData.category || 'General',
+        stock: 0 
       }])
       .select()
       .single();
 
-    if (error) {
-      alert("Error al registrar el producto nuevo");
-      return;
-    }
+    if (error) return alert("Error al registrar el producto");
 
-    // 2. Añadir automáticamente a la lista actual de la factura
     const newItem: PendingItem = {
       product_id: data.id,
       name: data.name,
       barcode: data.barcode,
-      quantity: 1,
+      quantity: newProductData.initial_quantity,
       cost_price: data.cost_price || 0
     };
 
     setItems([...items, newItem]);
     setIsAddModalOpen(false);
-    setNewProductData({ name: '', barcode: '', selling_price: 0, cost_price: 0, category: 'General' });
+    setNewProductData({ name: '', barcode: '', selling_price: 0, cost_price: 0, category: '', initial_quantity: 1 });
     setManualBarcode('');
+    fetchCategories(); 
   };
 
   const removeItem = (index: number) => {
@@ -168,8 +202,14 @@ export const ReceiveGoods = () => {
 
     await supabase.from('purchase_items').insert(detailItems);
     alert("¡Inventario actualizado!");
+    fetchSuppliers(); 
     setItems([]); setSupplier(''); setInvoiceNumber('');
   };
+
+  // Filtrar proveedores según lo que se escribe
+  const filteredSuppliers = suppliers.filter(s => 
+    s.toLowerCase().includes(supplier.toLowerCase())
+  );
 
   return (
     <div className="p-4 md:p-8 space-y-10 animate-in fade-in duration-700">
@@ -183,44 +223,74 @@ export const ReceiveGoods = () => {
           </h1>
           <div className="flex items-center gap-2 mt-1">
             <ScanLine size={14} className="text-green-600 animate-pulse" />
-            <p className="text-[10px] font-black text-green-600 uppercase tracking-widest italic">Lector listo</p>
+            <p className="text-[10px] font-black text-green-600 uppercase tracking-widest italic leading-none">Lector activo</p>
           </div>
         </div>
       </div>
 
       {/* Proveedor y Factura */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-white p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100">
-        <div className="space-y-3">
+        <div className="space-y-3 relative" ref={supplierContainerRef}>
           <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-2 flex items-center gap-2">
             <Truck size={14} className="text-green-700" /> Proveedor
           </label>
-          <input className="w-full border-2 border-transparent bg-gray-50 p-4 rounded-2xl focus:border-green-700 focus:bg-white outline-none transition-all font-bold text-gray-700" placeholder="Distribuidora..." value={supplier} onChange={(e) => setSupplier(e.target.value)} />
+          
+          <input 
+            type="text"
+            className="w-full border-2 border-transparent bg-gray-50 p-4 rounded-2xl focus:border-green-700 focus:bg-white outline-none transition-all font-bold text-gray-800 shadow-inner" 
+            placeholder="Escribe el nombre del proveedor..." 
+            value={supplier} 
+            onFocus={() => setShowSupplierSuggestions(true)}
+            onChange={(e) => {
+                setSupplier(e.target.value);
+                setShowSupplierSuggestions(true);
+            }} 
+          />
+
+          {/* LISTA DE PREDICCIÓN PERSONALIZADA (Adiós Datalist) */}
+          {showSupplierSuggestions && supplier.length > 0 && filteredSuppliers.length > 0 && (
+            <ul className="absolute z-50 w-full bg-white mt-2 rounded-2xl shadow-2xl border border-gray-100 overflow-hidden max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
+              {filteredSuppliers.map((sup, idx) => (
+                <li 
+                  key={idx}
+                  onClick={() => {
+                    setSupplier(sup);
+                    setShowSupplierSuggestions(false);
+                  }}
+                  className="p-4 hover:bg-green-50 cursor-pointer flex items-center justify-between group transition-colors"
+                >
+                  <span className="font-bold text-gray-700 group-hover:text-green-700">{sup}</span>
+                  <Check size={16} className="text-green-600 opacity-0 group-hover:opacity-100" />
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
+
         <div className="space-y-3">
           <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-2 flex items-center gap-2">
             <FileText size={14} className="text-orange-500" /> No. Documento
           </label>
-          <input className="w-full border-2 border-transparent bg-gray-50 p-4 rounded-2xl focus:border-green-700 focus:bg-white outline-none transition-all font-bold text-gray-700" placeholder="Ej: FAC-001" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} />
+          <input className="w-full border-2 border-transparent bg-gray-50 p-4 rounded-2xl focus:border-green-700 focus:bg-white outline-none transition-all font-bold text-gray-800 shadow-inner" placeholder="Ej: FAC-001" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} />
         </div>
       </div>
 
-      {/* Herramientas de Carga */}
+      {/* ... (El resto del código se mantiene igual, incluyendo el Modal de Registro Rápido) ... */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
         <div className="relative group">
           <label className="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-2 block ml-2">Ingreso Manual / Lector</label>
           <div className="relative">
-            <input type="text" placeholder="Escanea o escribe..." value={manualBarcode} onChange={(e) => setManualBarcode(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addProductByBarcode(manualBarcode)} className="w-full pl-12 pr-4 py-5 bg-white border-2 border-transparent focus:border-orange-500 rounded-[1.5rem] outline-none font-bold text-gray-700 shadow-xl shadow-gray-200/40" />
+            <input type="text" placeholder="Escanea o escribe..." value={manualBarcode} onChange={(e) => setManualBarcode(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addProductByBarcode(manualBarcode)} className="w-full pl-12 pr-4 py-5 bg-white border-2 border-transparent focus:border-orange-500 rounded-[1.5rem] outline-none font-bold text-gray-800 shadow-xl shadow-gray-200/40" />
             <Keyboard className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-400" size={24} />
           </div>
         </div>
 
-        <button onClick={() => setShowScanner(true)} className="w-full bg-green-50 text-green-700 px-8 py-5 rounded-[1.5rem] font-black uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-4 border-2 border-dashed border-green-200 hover:bg-green-700 hover:text-white transition-all group">
+        <button onClick={() => setShowScanner(true)} className="w-full bg-green-50 text-green-700 px-8 py-5 rounded-[1.5rem] font-black uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-4 border-2 border-dashed border-green-200 hover:bg-green-700 hover:text-white transition-all group active:scale-95">
           <Smartphone size={20} className="group-hover:animate-bounce" />
           Usar Cámara Celular
         </button>
       </div>
 
-      {/* Tabla y Resultados */}
       <div className="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/40 border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
@@ -241,14 +311,14 @@ export const ReceiveGoods = () => {
                     <div className="text-[10px] text-orange-500 font-mono font-bold">{item.barcode}</div>
                   </td>
                   <td className="p-6">
-                    <input type="number" className="w-28 mx-auto border-2 border-transparent bg-gray-50 rounded-xl p-2.5 text-center focus:border-green-700 outline-none font-black text-gray-700" value={item.cost_price} onChange={(e) => {
+                    <input type="number" className="w-28 mx-auto border-2 border-transparent bg-gray-50 rounded-xl p-2.5 text-center focus:border-green-700 outline-none font-black text-gray-800" value={item.cost_price === 0 ? '' : item.cost_price} onChange={(e) => {
                         const newItems = [...items];
                         newItems[index].cost_price = parseFloat(e.target.value) || 0;
                         setItems(newItems);
                       }} />
                   </td>
                   <td className="p-6">
-                    <input type="number" className="w-20 border-2 border-transparent bg-gray-50 mx-auto block rounded-xl p-2.5 text-center focus:border-green-700 outline-none font-black text-gray-700" value={item.quantity} onChange={(e) => {
+                    <input type="number" className="w-20 border-2 border-transparent bg-gray-50 mx-auto block rounded-xl p-2.5 text-center focus:border-green-700 outline-none font-black text-gray-800" value={item.quantity === 0 ? '' : item.quantity} onChange={(e) => {
                         const newItems = [...items];
                         newItems[index].quantity = parseInt(e.target.value) || 0;
                         setItems(newItems);
@@ -256,7 +326,7 @@ export const ReceiveGoods = () => {
                   </td>
                   <td className="p-6 text-right font-black text-gray-800 text-lg">Q{(item.quantity * item.cost_price).toFixed(2)}</td>
                   <td className="p-6 text-center">
-                    <button onClick={() => removeItem(index)} className="text-gray-300 hover:text-red-500 p-3 rounded-2xl"><Trash2 size={20} /></button>
+                    <button onClick={() => removeItem(index)} className="text-gray-300 hover:text-red-500 p-3 rounded-2xl transition-all"><Trash2 size={20} /></button>
                   </td>
                 </tr>
               ))}
@@ -267,76 +337,79 @@ export const ReceiveGoods = () => {
         {items.length === 0 ? (
           <div className="p-24 text-center flex flex-col items-center gap-6">
             <div className="bg-gray-50 p-10 rounded-full"><AlertCircle size={60} className="text-gray-200" /></div>
-            <p className="text-xl font-black text-gray-400 italic uppercase">Esperando carga...</p>
+            <p className="text-xl font-black text-gray-400 italic uppercase">Esperando carga de mercadería...</p>
           </div>
         ) : (
           <div className="p-10 bg-gray-50/50 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-8">
             <div className="text-5xl font-black text-green-700 italic tracking-tighter">
               Q{items.reduce((acc, i) => acc + (i.quantity * i.cost_price), 0).toFixed(2)}
             </div>
-            <button onClick={handleSaveInvoice} className="bg-green-700 hover:bg-green-900 text-white px-14 py-5 rounded-[1.5rem] font-black uppercase text-xs flex items-center gap-4 shadow-2xl">
+            <button onClick={handleSaveInvoice} className="bg-green-700 hover:bg-green-900 text-white px-14 py-5 rounded-[1.5rem] font-black uppercase text-xs flex items-center gap-4 shadow-2xl transition-all active:scale-95">
               <Save size={24} /> Confirmar Ingreso
             </button>
           </div>
         )}
       </div>
 
-      {/* MODAL DE REGISTRO RÁPIDO PARA PRODUCTO NUEVO */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-lg rounded-[3rem] shadow-2xl overflow-hidden border-4 border-orange-500 animate-in zoom-in duration-300">
             <div className="p-8 border-b bg-orange-500 text-white flex justify-between items-center">
               <div className="flex items-center gap-3">
                 <Plus size={24} />
-                <h2 className="text-xl font-black italic uppercase tracking-tighter">Nuevo Producto Detectado</h2>
+                <h2 className="text-xl font-black italic uppercase tracking-tighter leading-none">Registro Rápido</h2>
               </div>
               <button onClick={() => setIsAddModalOpen(false)} className="bg-white/10 p-2 rounded-full hover:bg-white/20"><X /></button>
             </div>
             
-            <div className="p-8 space-y-5">
-              <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100">
-                <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest italic">Código Escaneado</p>
-                <p className="font-mono font-bold text-orange-600">{newProductData.barcode}</p>
+            <div className="p-8 space-y-6">
+              <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 flex justify-between items-center">
+                <div>
+                  <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest italic">Código</p>
+                  <p className="font-mono font-bold text-orange-600">{newProductData.barcode}</p>
+                </div>
+                <div className="bg-orange-200/50 p-2 rounded-lg text-orange-600"><ScanLine size={20}/></div>
               </div>
 
               <div className="space-y-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-gray-400 uppercase ml-2 tracking-widest">Nombre del Producto</label>
-                  <input 
-                    className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-orange-500 outline-none font-bold transition-all shadow-inner"
-                    placeholder="Ej: Leche Deslactosada 1L"
-                    value={newProductData.name}
-                    onChange={(e) => setNewProductData({...newProductData, name: e.target.value})}
-                  />
+                  <input className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-orange-500 outline-none font-bold transition-all shadow-inner text-gray-800" placeholder="Ej: Sabritas Original 45g" value={newProductData.name} onChange={(e) => setNewProductData({...newProductData, name: e.target.value})} />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase ml-2 tracking-widest flex items-center gap-2">
+                    <Layers size={14}/> Categoría
+                  </label>
+                  {/* AQUÍ TAMBIÉN USAMOS UN INPUT NORMAL PARA EVITAR EL BUG DEL DATALIST SI PREFIERES */}
+                  <input list="categories-list-2" className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-orange-500 outline-none font-bold transition-all shadow-inner uppercase text-gray-800" placeholder="Selecciona o escribe una nueva..." value={newProductData.category} onChange={(e) => setNewProductData({...newProductData, category: e.target.value})} />
+                  <datalist id="categories-list-2">
+                    {categories.map((cat, idx) => (
+                      <option key={idx} value={cat}>{cat}</option>
+                    ))}
+                  </datalist>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase ml-2 tracking-widest">Precio Venta (Q)</label>
-                    <input 
-                      type="number"
-                      className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-orange-500 outline-none font-bold transition-all shadow-inner"
-                      value={newProductData.selling_price}
-                      onChange={(e) => setNewProductData({...newProductData, selling_price: parseFloat(e.target.value) || 0})}
-                    />
+                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1 tracking-tighter">Costo Fact.</label>
+                    <input type="number" className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-orange-500 outline-none font-bold transition-all shadow-inner text-gray-800" value={newProductData.cost_price === 0 ? '' : newProductData.cost_price} onChange={(e) => setNewProductData({...newProductData, cost_price: parseFloat(e.target.value) || 0})} />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase ml-2 tracking-widest">Costo Factura (Q)</label>
-                    <input 
-                      type="number"
-                      className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-orange-500 outline-none font-bold transition-all shadow-inner"
-                      value={newProductData.cost_price}
-                      onChange={(e) => setNewProductData({...newProductData, cost_price: parseFloat(e.target.value) || 0})}
-                    />
+                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1 tracking-tighter">Precio Venta</label>
+                    <input type="number" className="w-full p-4 bg-orange-50 rounded-2xl border-2 border-transparent focus:border-orange-500 outline-none font-bold transition-all shadow-inner text-orange-700" value={newProductData.selling_price === 0 ? '' : newProductData.selling_price} onChange={(e) => setNewProductData({...newProductData, selling_price: parseFloat(e.target.value) || 0})} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1 tracking-tighter flex items-center gap-1">
+                       <Hash size={10}/> Cant.
+                    </label>
+                    <input type="number" className="w-full p-4 bg-green-50 rounded-2xl border-2 border-transparent focus:border-green-600 outline-none font-bold transition-all shadow-inner text-green-700" value={newProductData.initial_quantity === 0 ? '' : newProductData.initial_quantity} onChange={(e) => setNewProductData({...newProductData, initial_quantity: parseInt(e.target.value) || 0})} />
                   </div>
                 </div>
               </div>
 
-              <button 
-                onClick={handleQuickAddProduct}
-                className="w-full bg-orange-500 text-white py-5 rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-orange-900/20 hover:bg-orange-600 transition-all flex items-center justify-center gap-3"
-              >
-                <Save size={18} /> Registrar y Añadir a Factura
+              <button onClick={handleQuickAddProduct} className="w-full bg-orange-500 text-white py-5 rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-orange-900/20 hover:bg-orange-600 transition-all flex items-center justify-center gap-3 active:scale-95">
+                <Save size={18} /> Registrar en Inventario
               </button>
             </div>
           </div>

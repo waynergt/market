@@ -11,6 +11,8 @@ import {
   Keyboard,
   ScanLine,
   Smartphone,
+  Plus,
+  X,
 } from 'lucide-react';
 
 interface PendingItem {
@@ -28,7 +30,16 @@ export const ReceiveGoods = () => {
   const [manualBarcode, setManualBarcode] = useState('');
   const [items, setItems] = useState<PendingItem[]>([]);
 
-  // --- LÓGICA PARA LECTOR FÍSICO (DESKTOP) ---
+  // Estados para el nuevo producto
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newProductData, setNewProductData] = useState({
+    name: '',
+    barcode: '',
+    selling_price: 0,
+    cost_price: 0,
+    category: 'General'
+  });
+
   useEffect(() => {
     let barcodeBuffer = '';
     let lastKeyTime = Date.now();
@@ -62,10 +73,17 @@ export const ReceiveGoods = () => {
       .from('products')
       .select('id, name, barcode, cost_price')
       .eq('barcode', cleanCode)
-      .single();
+      .maybeSingle();
 
-    if (error || !data) {
-      alert("Producto no encontrado: " + cleanCode);
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    if (!data) {
+      // SI NO EXISTE: Preparamos los datos y abrimos el modal de registro rápido
+      setNewProductData({ ...newProductData, barcode: cleanCode });
+      setIsAddModalOpen(true);
       setShowScanner(false);
       return;
     }
@@ -81,6 +99,46 @@ export const ReceiveGoods = () => {
     setItems([...items, newItem]);
     setManualBarcode('');
     setShowScanner(false);
+  };
+
+  const handleQuickAddProduct = async () => {
+    if (!newProductData.name || newProductData.selling_price <= 0) {
+      alert("Por favor completa el nombre y precio de venta");
+      return;
+    }
+
+    // 1. Guardar en la base de datos
+    const { data, error } = await supabase
+      .from('products')
+      .insert([{
+        name: newProductData.name,
+        barcode: newProductData.barcode,
+        selling_price: newProductData.selling_price,
+        cost_price: newProductData.cost_price,
+        category: newProductData.category,
+        stock: 0 // Iniciamos en 0 porque la factura sumará la cantidad recibida
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      alert("Error al registrar el producto nuevo");
+      return;
+    }
+
+    // 2. Añadir automáticamente a la lista actual de la factura
+    const newItem: PendingItem = {
+      product_id: data.id,
+      name: data.name,
+      barcode: data.barcode,
+      quantity: 1,
+      cost_price: data.cost_price || 0
+    };
+
+    setItems([...items, newItem]);
+    setIsAddModalOpen(false);
+    setNewProductData({ name: '', barcode: '', selling_price: 0, cost_price: 0, category: 'General' });
+    setManualBarcode('');
   };
 
   const removeItem = (index: number) => {
@@ -114,7 +172,6 @@ export const ReceiveGoods = () => {
   };
 
   return (
-    /* Aplicamos la animación EXACTA que te funciona en el Reporte */
     <div className="p-4 md:p-8 space-y-10 animate-in fade-in duration-700">
       
       {/* Encabezado */}
@@ -223,6 +280,68 @@ export const ReceiveGoods = () => {
           </div>
         )}
       </div>
+
+      {/* MODAL DE REGISTRO RÁPIDO PARA PRODUCTO NUEVO */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-lg rounded-[3rem] shadow-2xl overflow-hidden border-4 border-orange-500 animate-in zoom-in duration-300">
+            <div className="p-8 border-b bg-orange-500 text-white flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <Plus size={24} />
+                <h2 className="text-xl font-black italic uppercase tracking-tighter">Nuevo Producto Detectado</h2>
+              </div>
+              <button onClick={() => setIsAddModalOpen(false)} className="bg-white/10 p-2 rounded-full hover:bg-white/20"><X /></button>
+            </div>
+            
+            <div className="p-8 space-y-5">
+              <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100">
+                <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest italic">Código Escaneado</p>
+                <p className="font-mono font-bold text-orange-600">{newProductData.barcode}</p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase ml-2 tracking-widest">Nombre del Producto</label>
+                  <input 
+                    className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-orange-500 outline-none font-bold transition-all shadow-inner"
+                    placeholder="Ej: Leche Deslactosada 1L"
+                    value={newProductData.name}
+                    onChange={(e) => setNewProductData({...newProductData, name: e.target.value})}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase ml-2 tracking-widest">Precio Venta (Q)</label>
+                    <input 
+                      type="number"
+                      className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-orange-500 outline-none font-bold transition-all shadow-inner"
+                      value={newProductData.selling_price}
+                      onChange={(e) => setNewProductData({...newProductData, selling_price: parseFloat(e.target.value) || 0})}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase ml-2 tracking-widest">Costo Factura (Q)</label>
+                    <input 
+                      type="number"
+                      className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-orange-500 outline-none font-bold transition-all shadow-inner"
+                      value={newProductData.cost_price}
+                      onChange={(e) => setNewProductData({...newProductData, cost_price: parseFloat(e.target.value) || 0})}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <button 
+                onClick={handleQuickAddProduct}
+                className="w-full bg-orange-500 text-white py-5 rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-orange-900/20 hover:bg-orange-600 transition-all flex items-center justify-center gap-3"
+              >
+                <Save size={18} /> Registrar y Añadir a Factura
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showScanner && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">

@@ -24,9 +24,9 @@ export const Ticket = forwardRef<HTMLDivElement, any>(({ sale, items }, ref) => 
         <h2 className="text-sm font-black uppercase italic tracking-tighter">Del Sol Market</h2>
         <div className="flex flex-col items-center gap-0.5 text-[8px] font-bold text-gray-600">
           <p className="flex items-center gap-1 uppercase">
-            <MapPin size={8} /> Aldea La Libertad, Taxisco
+            <MapPin size={8} /> Interior Gasolinera Puerta del Sol, Chiquimulilla, Santa Rosa
           </p>
-          <p className="tracking-widest">NIT: 8736055-1</p>
+          <p className="tracking-widest">NIT: 00000000</p>
         </div>
       </div>
 
@@ -104,7 +104,7 @@ export const Ticket = forwardRef<HTMLDivElement, any>(({ sale, items }, ref) => 
             Sujeto a pagos trimestrales ISR
           </p>
           <p className="text-[6px] italic font-medium">
-            *** Del Sol Market - Taxisco, Santa Rosa ***
+            *** Del Sol Market - Interior Gasolinera Puerta del Sol, Chiquimulilla, Santa Rosa ***
           </p>
         </div>
         

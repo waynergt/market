@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { X, Barcode, Save, Loader2 } from 'lucide-react';
 import { BarcodeScanner } from './BarcodeScanner';
+import { alertError, toast } from '../lib/alerts';
 
 interface Props {
   isOpen: boolean;
@@ -45,8 +46,9 @@ export const AddProductModal = ({ isOpen, onClose, onSuccess }: Props) => {
 
     setLoading(false);
     if (error) {
-      alert("Error al guardar: " + error.message);
+      alertError("Error al guardar", error.message);
     } else {
+      toast("Producto creado con éxito", "success");
       onSuccess();
       handleClose();
       setFormData({ barcode: '', name: '', category: '', cost_price: '', selling_price: '', stock: '' });
@@ -67,7 +69,6 @@ export const AddProductModal = ({ isOpen, onClose, onSuccess }: Props) => {
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           <div className="space-y-2">
-            {/* Label con toque Naranja para el código */}
             <label className="text-[10px] font-black text-orange-500 uppercase tracking-widest ml-1 flex items-center gap-2">
               <Barcode size={14}/> Código de Barras
             </label>

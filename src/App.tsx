@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from './lib/supabase'; // CORREGIDO: de ../ a ./
+import { supabase } from './lib/supabase';
 import { Sidebar } from './components/Sidebar';
 import { Inventory } from './components/Inventory';
 import { ReceiveGoods } from './components/ReceiveGoods';
@@ -9,6 +9,7 @@ import { SalesHistory } from './components/SalesHistory';
 import { CashClosing } from './components/CashClosing';
 import { Auth } from './components/Auth';
 import { InventoryReport } from './components/InventoryReport';
+import { Kardex } from './components/Kardex'; // IMPORTAMOS EL KARDEX
 import './index.css';
 
 function App() {
@@ -40,11 +41,11 @@ function App() {
 
   const renderContent = () => {
     return (
-      /* Usamos nuestra nueva animación personalizada */
       <div key={activeTab} className="animate-fade-up">
         {(() => {
           switch (activeTab) {
             case 'inv_report': return <InventoryReport />;
+            case 'kardex': return <Kardex />; // ENLAZAMOS LA PESTAÑA CON EL COMPONENTE
             case 'pos': return <POS />;
             case 'inventory': return <Inventory />;
             case 'receive': return <ReceiveGoods />;
@@ -81,8 +82,8 @@ function App() {
       {/* Contenedor Principal Ajustado al ancho del Sidebar (72) */}
       <div className="flex-1 lg:ml-72 transition-all duration-300 min-h-screen">
         <main className="p-4 md:p-0">
-          {/* Lógica de protección de rutas */}
-          {(activeTab === 'dashboard' || activeTab === 'inventory' || activeTab === 'receive' || activeTab === 'closing') && role !== 'admin' 
+          {/* AÑADIDO 'kardex' A LA LÓGICA DE PROTECCIÓN (SOLO ADMIN) */}
+          {(activeTab === 'dashboard' || activeTab === 'inventory' || activeTab === 'receive' || activeTab === 'closing' || activeTab === 'kardex') && role !== 'admin' 
             ? <div className="animate-in fade-in duration-500"><POS /></div> 
             : renderContent()}
         </main>

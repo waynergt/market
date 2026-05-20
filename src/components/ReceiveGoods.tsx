@@ -33,13 +33,11 @@ export const ReceiveGoods = () => {
   const [manualBarcode, setManualBarcode] = useState('');
   const [items, setItems] = useState<PendingItem[]>([]);
   
-  // Estados para predicciones
   const [categories, setCategories] = useState<string[]>([]);
   const [suppliers, setSuppliers] = useState<string[]>([]);
   const [showSupplierSuggestions, setShowSupplierSuggestions] = useState(false);
   const supplierContainerRef = useRef<HTMLDivElement>(null);
 
-  // Estados para el nuevo producto
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newProductData, setNewProductData] = useState({
     name: '',
@@ -50,7 +48,6 @@ export const ReceiveGoods = () => {
     initial_quantity: 1
   });
 
-  // Cerrar sugerencias al hacer clic afuera
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (supplierContainerRef.current && !supplierContainerRef.current.contains(event.target as Node)) {
@@ -107,13 +104,14 @@ export const ReceiveGoods = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [items]);
 
+  // NUEVO: Validación de productos descontinuados al cargar compras
   const addProductByBarcode = async (code: string) => {
     const cleanCode = code.trim();
     if (!cleanCode) return;
 
     const { data, error } = await supabase
       .from('products')
-      .select('id, name, barcode, cost_price')
+      .select('id, name, barcode, cost_price, is_active')
       .eq('barcode', cleanCode)
       .maybeSingle();
 
@@ -122,6 +120,14 @@ export const ReceiveGoods = () => {
     if (!data) {
       setNewProductData({ ...newProductData, barcode: cleanCode, initial_quantity: 1, category: '' });
       setIsAddModalOpen(true);
+      setShowScanner(false);
+      return;
+    }
+
+    // VALIDACIÓN CLAVE
+    if (data.is_active === false) {
+      alert(`⚠️ El producto "${data.name}" está DESCONTINUADO. Ve a la pestaña "Inventario" para reactivarlo antes de ingresar la factura.`);
+      setManualBarcode('');
       setShowScanner(false);
       return;
     }
@@ -201,12 +207,36 @@ export const ReceiveGoods = () => {
     }));
 
     await supabase.from('purchase_items').insert(detailItems);
-    alert("¡Inventario actualizado!");
+
+    for (const item of items) {
+      const { data: product } = await supabase
+        .from('products')
+        .select('stock')
+        .eq('id', item.product_id)
+        .single();
+
+      const currentStock = product?.stock || 0;
+      const nuevoStock = currentStock + item.quantity;
+
+      await supabase
+        .from('products')
+        .update({ stock: nuevoStock, cost_price: item.cost_price })
+        .eq('id', item.product_id);
+
+      await supabase.from('inventory_logs').insert({
+        product_id: item.product_id,
+        change_amount: item.quantity,
+        reason: `Ingreso Factura: ${invoiceNumber || 'S/N'} - Prov: ${supplier}`,
+        previous_stock: currentStock,
+        new_stock: nuevoStock
+      });
+    }
+
+    alert("¡Inventario y Kardex actualizados con éxito!");
     fetchSuppliers(); 
     setItems([]); setSupplier(''); setInvoiceNumber('');
   };
 
-  // Filtrar proveedores según lo que se escribe
   const filteredSuppliers = suppliers.filter(s => 
     s.toLowerCase().includes(supplier.toLowerCase())
   );
@@ -214,7 +244,6 @@ export const ReceiveGoods = () => {
   return (
     <div className="p-4 md:p-8 space-y-10 animate-in fade-in duration-700">
       
-      {/* Encabezado */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-6">
         <div>
           <h1 className="text-4xl font-black text-gray-800 flex items-center gap-4 italic uppercase tracking-tighter">
@@ -228,7 +257,6 @@ export const ReceiveGoods = () => {
         </div>
       </div>
 
-      {/* Proveedor y Factura */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-white p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100">
         <div className="space-y-3 relative" ref={supplierContainerRef}>
           <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-2 flex items-center gap-2">
@@ -247,7 +275,6 @@ export const ReceiveGoods = () => {
             }} 
           />
 
-          {/* LISTA DE PREDICCIÓN PERSONALIZADA (Adiós Datalist) */}
           {showSupplierSuggestions && supplier.length > 0 && filteredSuppliers.length > 0 && (
             <ul className="absolute z-50 w-full bg-white mt-2 rounded-2xl shadow-2xl border border-gray-100 overflow-hidden max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
               {filteredSuppliers.map((sup, idx) => (
@@ -275,7 +302,6 @@ export const ReceiveGoods = () => {
         </div>
       </div>
 
-      {/* ... (El resto del código se mantiene igual, incluyendo el Modal de Registro Rápido) ... */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
         <div className="relative group">
           <label className="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-2 block ml-2">Ingreso Manual / Lector</label>
@@ -381,7 +407,6 @@ export const ReceiveGoods = () => {
                   <label className="text-[10px] font-black text-gray-400 uppercase ml-2 tracking-widest flex items-center gap-2">
                     <Layers size={14}/> Categoría
                   </label>
-                  {/* AQUÍ TAMBIÉN USAMOS UN INPUT NORMAL PARA EVITAR EL BUG DEL DATALIST SI PREFIERES */}
                   <input list="categories-list-2" className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-orange-500 outline-none font-bold transition-all shadow-inner uppercase text-gray-800" placeholder="Selecciona o escribe una nueva..." value={newProductData.category} onChange={(e) => setNewProductData({...newProductData, category: e.target.value})} />
                   <datalist id="categories-list-2">
                     {categories.map((cat, idx) => (

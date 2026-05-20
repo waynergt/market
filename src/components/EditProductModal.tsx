@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { X, Save, Loader2, Trash2, Tag, Barcode } from 'lucide-react';
+import { X, Save, Loader2, Tag, Barcode, PowerOff, Power } from 'lucide-react';
 
 interface Product {
   id: string;
@@ -10,6 +10,7 @@ interface Product {
   cost_price: number;
   selling_price: number;
   stock: number;
+  is_active: boolean; // NUEVO: Control de borrado lógico
 }
 
 interface Props {
@@ -67,19 +68,24 @@ export const EditProductModal = ({ isOpen, onClose, onSuccess, product }: Props)
     }
   };
 
-  const handleDelete = async () => {
-    if (!window.confirm(`¿Estás seguro de que deseas eliminar "${product.name}"? Esta acción no se puede deshacer.`)) return;
+  // NUEVO: Función para Descontinuar o Reactivar (Borrado Lógico)
+  const handleToggleActive = async () => {
+    const newStatus = !product.is_active;
+    const actionText = newStatus ? "reactivar" : "descontinuar";
+
+    if (!window.confirm(`¿Estás seguro de que deseas ${actionText} "${product.name}"?`)) return;
     
     setLoading(true);
     const { error } = await supabase
       .from('products')
-      .delete()
+      .update({ is_active: newStatus })
       .eq('id', product.id);
 
     setLoading(false);
     if (error) {
-      alert("Error al eliminar: " + error.message);
+      alert(`Error al ${actionText}: ` + error.message);
     } else {
+      alert(`Producto ${newStatus ? 'reactivado' : 'descontinuado'} con éxito.`);
       onSuccess();
       onClose();
     }
@@ -91,13 +97,15 @@ export const EditProductModal = ({ isOpen, onClose, onSuccess, product }: Props)
       <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border border-gray-100">
         
         {/* Encabezado con degradado pro */}
-        <div className="p-8 border-b flex justify-between items-center bg-gradient-to-r from-green-700 to-green-900 text-white">
+        <div className={`p-8 border-b flex justify-between items-center bg-gradient-to-r text-white ${product.is_active ? 'from-green-700 to-green-900' : 'from-gray-500 to-gray-700'}`}>
           <div className="flex items-center gap-4">
             <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md">
               <Tag size={24} />
             </div>
             <div>
-              <h2 className="text-xl font-black italic uppercase tracking-tight leading-none">Editar Producto</h2>
+              <h2 className="text-xl font-black italic uppercase tracking-tight leading-none">
+                {product.is_active ? 'Editar Producto' : 'Producto Descontinuado'}
+              </h2>
               <div className="flex items-center gap-1 mt-1 text-orange-400 font-mono text-xs font-bold">
                 <Barcode size={12} />
                 <span>{product.barcode}</span>
@@ -165,17 +173,20 @@ export const EditProductModal = ({ isOpen, onClose, onSuccess, product }: Props)
             <div className="space-y-2">
               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Categoría</label>
               <div className="relative">
-                <select 
-                  className="w-full border-2 border-transparent bg-gray-50 p-4 rounded-2xl focus:border-green-700 focus:bg-white outline-none transition-all font-bold text-gray-700 appearance-none cursor-pointer" 
+                <input 
+                  list="edit-categories-list"
+                  className="w-full border-2 border-transparent bg-gray-50 p-4 rounded-2xl focus:border-green-700 focus:bg-white outline-none transition-all font-bold text-gray-700 appearance-none" 
                   value={formData.category} 
                   onChange={(e) => setFormData({...formData, category: e.target.value})}
-                >
+                  placeholder="Categoría..."
+                />
+                <datalist id="edit-categories-list">
                   <option value="Bebidas">Bebidas</option>
                   <option value="Snacks">Snacks</option>
                   <option value="Comida">Comida</option>
                   <option value="Limpieza">Limpieza</option>
                   <option value="Otros">Otros</option>
-                </select>
+                </datalist>
                 <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
                    <Tag size={16} />
                 </div>
@@ -183,22 +194,27 @@ export const EditProductModal = ({ isOpen, onClose, onSuccess, product }: Props)
             </div>
           </div>
 
-          {/* Botonera de Acciones */}
+          {/* Botonera de Acciones Modificada */}
           <div className="flex gap-4 pt-4">
             <button 
               type="button"
-              onClick={handleDelete}
+              onClick={handleToggleActive}
               disabled={loading}
-              className="flex-1 bg-red-50 text-red-600 font-black py-4 rounded-2xl flex items-center justify-center gap-2 hover:bg-red-100 transition-all active:scale-95 shadow-sm uppercase text-[10px] tracking-widest"
+              className={`flex-1 font-black py-4 rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm uppercase text-[10px] tracking-widest ${
+                product.is_active 
+                ? 'bg-red-50 text-red-600 hover:bg-red-100' 
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
             >
-              <Trash2 size={18} /> Eliminar
+              {product.is_active ? <PowerOff size={18} /> : <Power size={18} />} 
+              {product.is_active ? 'Descontinuar' : 'Reactivar'}
             </button>
             <button 
               disabled={loading}
               className="flex-[2] bg-green-700 hover:bg-green-900 text-white font-black py-4 rounded-2xl shadow-xl shadow-green-700/20 flex items-center justify-center gap-3 transition-all active:scale-95 disabled:opacity-50 uppercase text-xs tracking-widest"
             >
               {loading ? <Loader2 className="animate-spin" /> : <Save size={20} />}
-              Actualizar Producto
+              Guardar Cambios
             </button>
           </div>
         </form>

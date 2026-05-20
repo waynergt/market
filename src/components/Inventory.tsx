@@ -8,6 +8,7 @@ import {
   AlertCircle, 
   ChevronRight,
   Archive,
+  PowerOff
 } from 'lucide-react';
 import { AddProductModal } from './AddProductModal';
 import { EditProductModal } from './EditProductModal';
@@ -20,6 +21,7 @@ interface Product {
   cost_price: number;
   selling_price: number;
   stock: number;
+  is_active: boolean; // NUEVO: Control de borrado lógico
 }
 
 export const Inventory = () => {
@@ -27,6 +29,7 @@ export const Inventory = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [stockFilter, setStockFilter] = useState<'all' | 'low'>('all');
+  const [statusFilter, setStatusFilter] = useState<'active' | 'inactive'>('active'); // NUEVO FILTRO
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -59,10 +62,13 @@ export const Inventory = () => {
       
       const matchesCategory = selectedCategory === '' || product.category === selectedCategory;
       const matchesStock = stockFilter === 'all' || product.stock < 5;
+      
+      // NUEVO: Filtramos por si está activo o descontinuado
+      const matchesStatus = statusFilter === 'active' ? product.is_active !== false : product.is_active === false;
 
-      return matchesSearch && matchesCategory && matchesStock;
+      return matchesSearch && matchesCategory && matchesStock && matchesStatus;
     });
-  }, [products, searchTerm, selectedCategory, stockFilter]);
+  }, [products, searchTerm, selectedCategory, stockFilter, statusFilter]);
 
   const categories = Array.from(new Set(products.map(p => p.category))).filter(Boolean);
 
@@ -82,6 +88,26 @@ export const Inventory = () => {
           className="bg-green-700 hover:bg-green-900 text-white px-8 py-4 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-xl shadow-green-700/20 transition-all active:scale-95"
         >
           <Plus size={22} /> Nuevo Producto
+        </button>
+      </div>
+
+      {/* TABS DE ESTADO (Activos / Descontinuados) */}
+      <div className="flex gap-4 border-b border-gray-200">
+        <button 
+          onClick={() => setStatusFilter('active')}
+          className={`pb-4 px-2 font-black uppercase tracking-widest text-sm transition-all border-b-4 ${
+            statusFilter === 'active' ? 'border-green-700 text-green-700' : 'border-transparent text-gray-400 hover:text-gray-600'
+          }`}
+        >
+          Catálogo Activo
+        </button>
+        <button 
+          onClick={() => setStatusFilter('inactive')}
+          className={`pb-4 px-2 font-black uppercase tracking-widest text-sm transition-all border-b-4 flex items-center gap-2 ${
+            statusFilter === 'inactive' ? 'border-red-500 text-red-500' : 'border-transparent text-gray-400 hover:text-gray-600'
+          }`}
+        >
+          <PowerOff size={16} /> Descontinuados
         </button>
       </div>
 
@@ -157,8 +183,11 @@ export const Inventory = () => {
               {filteredProducts.map((product) => (
                 <tr key={product.id} className="group hover:bg-green-50/50 transition-colors">
                   <td className="p-6">
-                    <div className="font-black text-gray-800 group-hover:text-green-700 transition-colors uppercase italic tracking-tight">
+                    <div className="font-black text-gray-800 group-hover:text-green-700 transition-colors uppercase italic tracking-tight flex items-center gap-2">
                       {product.name}
+                      {product.is_active === false && (
+                        <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded-md text-[8px] tracking-widest">DESCONTINUADO</span>
+                      )}
                     </div>
                     <div className="text-[10px] text-orange-500 font-mono font-bold tracking-widest mt-0.5">
                       {product.barcode}
@@ -170,7 +199,9 @@ export const Inventory = () => {
                     </span>
                   </td>
                   <td className="p-6 text-right">
-                    <span className="font-black text-green-700 text-lg">Q{product.selling_price.toFixed(2)}</span>
+                    <span className={`font-black text-lg ${product.is_active === false ? 'text-gray-400' : 'text-green-700'}`}>
+                      Q{product.selling_price.toFixed(2)}
+                    </span>
                   </td>
                   <td className="p-6">
                     <div className="flex flex-col items-center gap-1">
@@ -215,7 +246,6 @@ export const Inventory = () => {
         )}
       </div>
 
-      {/* MODALES */}
       <AddProductModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 

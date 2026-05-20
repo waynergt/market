@@ -11,7 +11,8 @@ import {
   ShieldCheck, 
   FileCheck,
   FileBarChart,
-  ChevronRight
+  ChevronRight,
+  ClipboardType // NUEVO ÍCONO PARA EL KARDEX
 } from 'lucide-react';
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
@@ -30,6 +31,7 @@ export const Sidebar = ({ activeTab, setActiveTab, userRole }: SidebarProps) => 
     { id: 'history', label: 'Historial', icon: History, roles: ['admin', 'vendedor'] },
     { id: 'closing', label: 'Corte de Caja', icon: FileCheck, roles: ['admin'] },
     { id: 'inv_report', label: 'Reporte Inv.', icon: FileBarChart, roles: ['admin'] },
+    { id: 'kardex', label: 'Kardex / Movs.', icon: ClipboardType, roles: ['admin'] }, // NUEVO: KARDEX
     { id: 'inventory', label: 'Inventario', icon: Package, roles: ['admin'] },
     { id: 'receive', label: 'Carga Facturas', icon: ClipboardList, roles: ['admin'] },
     { id: 'dashboard', label: 'Panel Control', icon: LayoutDashboard, roles: ['admin'] },

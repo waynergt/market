@@ -81,16 +81,29 @@ export const POS = () => {
     }
   };
 
+  // NUEVO: Validación de productos descontinuados
   const handleScan = async (code: string) => {
     const cleanCode = code.trim();
     const { data, error } = await supabase
       .from('products')
-      .select('id, name, barcode, selling_price, stock')
+      .select('id, name, barcode, selling_price, stock, is_active')
       .eq('barcode', cleanCode)
-      .single();
+      .maybeSingle();
 
-    if (error || !data) {
-      alert("Producto no encontrado: " + cleanCode);
+    if (error) {
+      alert("Error buscando producto.");
+      return;
+    }
+
+    if (!data) {
+      alert("Producto no encontrado en la base de datos.");
+      return;
+    }
+
+    // VALIDACIÓN CLAVE AQUÍ
+    if (data.is_active === false) {
+      alert(`⚠️ El producto "${data.name}" está DESCONTINUADO. No se puede vender.`);
+      setManualBarcode('');
       return;
     }
     
@@ -122,7 +135,6 @@ export const POS = () => {
   };
 
   const updateQuantity = (id: string, newQty: number) => {
-    // Permitimos 0 temporalmente para que el usuario pueda borrar el input
     if (newQty < 0) return; 
 
     setCart(prev => prev.map(item => {
@@ -145,33 +157,63 @@ export const POS = () => {
     if (cart.length === 0) return;
     setLoading(true);
 
-    const { data: sale, error: sError } = await supabase
-      .from('sales')
-      .insert([{ total, payment_method: method, customer_id: selectedCustomer.id || null }])
-      .select().single();
+    try {
+      const { data: sale, error: saleError } = await supabase
+        .from('sales')
+        .insert([{ 
+          total, 
+          payment_method: method, 
+          customer_id: selectedCustomer?.id || null 
+        }])
+        .select().single();
 
-    if (sError) {
+      if (saleError) throw saleError;
+
+      for (const item of cart) {
+        await supabase.from('sale_items').insert({
+          sale_id: sale.id,
+          product_id: item.id,
+          quantity: item.quantity,
+          price_at_sale: item.price
+        });
+
+        const { data: product } = await supabase
+          .from('products')
+          .select('stock')
+          .eq('id', item.id)
+          .single();
+
+        const currentStock = product?.stock || 0;
+        const nuevoStock = currentStock - item.quantity;
+
+        await supabase
+          .from('products')
+          .update({ stock: nuevoStock })
+          .eq('id', item.id);
+
+        await supabase.from('inventory_logs').insert({
+          product_id: item.id,
+          change_amount: -item.quantity,
+          reason: `Venta POS #${sale.id.split('-')[0].toUpperCase()}`,
+          previous_stock: currentStock,
+          new_stock: nuevoStock
+        });
+      }
+
+      setLastSale({ ...sale, customer: selectedCustomer });
+      setTimeout(() => {
+        if (confirm("Venta exitosa y stock restado. ¿Imprimir ticket?")) handlePrint();
+        setCart([]);
+        setLastSale(null);
+        setSelectedCustomer({ name: 'Consumidor Final', nit: 'C/F' });
+      }, 500);
+
+    } catch (error) {
+      console.error("Error en venta:", error);
+      alert("Hubo un error al procesar la venta");
+    } finally {
       setLoading(false);
-      return alert("Error al procesar venta");
     }
-
-    const saleDetails = cart.map(item => ({
-      sale_id: sale.id,
-      product_id: item.id,
-      quantity: item.quantity,
-      price_at_sale: item.price
-    }));
-
-    await supabase.from('sale_items').insert(saleDetails);
-    
-    setLastSale({ ...sale, customer: selectedCustomer });
-    setTimeout(() => {
-      if (confirm("Venta exitosa. ¿Imprimir ticket?")) handlePrint();
-      setCart([]);
-      setLastSale(null);
-      setSelectedCustomer({ name: 'Consumidor Final', nit: 'C/F' });
-    }, 500);
-    setLoading(false);
   };
 
   return (
@@ -221,14 +263,13 @@ export const POS = () => {
                       </button>
                       <input 
                         type="number" 
-                        value={item.quantity === 0 ? '' : item.quantity} // Permite que se vea vacío al borrar
+                        value={item.quantity === 0 ? '' : item.quantity}
                         onChange={(e) => {
                           const val = e.target.value;
                           const num = parseInt(val);
                           updateQuantity(item.id, isNaN(num) ? 0 : num);
                         }}
                         onBlur={() => {
-                          // Si el usuario deja vacío o pone 0, regresamos a 1 al salir del campo
                           if (item.quantity < 1) updateQuantity(item.id, 1);
                         }}
                         className="w-12 text-center bg-transparent font-black text-gray-800 outline-none"

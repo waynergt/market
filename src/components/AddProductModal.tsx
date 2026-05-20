@@ -33,26 +33,42 @@ export const AddProductModal = ({ isOpen, onClose, onSuccess }: Props) => {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.from('products').insert([
+    const initialStock = parseInt(formData.stock) || 0;
+
+    // 1. Insertar el producto
+    const { data: newProduct, error } = await supabase.from('products').insert([
       {
         barcode: formData.barcode,
         name: formData.name,
         category: formData.category,
         cost_price: parseFloat(formData.cost_price),
         selling_price: parseFloat(formData.selling_price),
-        stock: parseInt(formData.stock),
+        stock: initialStock,
       }
-    ]);
+    ]).select().single(); // Necesitamos el ID que acaba de crear
+
+    if (error) {
+      setLoading(false);
+      alertError("Error al guardar", error.message);
+      return;
+    }
+
+    // 2. Si hay stock inicial, lo registramos en el Kardex
+    if (initialStock > 0 && newProduct) {
+      await supabase.from('inventory_logs').insert({
+        product_id: newProduct.id,
+        change_amount: initialStock,
+        reason: 'Inventario Inicial (Nuevo Producto)',
+        previous_stock: 0,
+        new_stock: initialStock
+      });
+    }
 
     setLoading(false);
-    if (error) {
-      alertError("Error al guardar", error.message);
-    } else {
-      toast("Producto creado con éxito", "success");
-      onSuccess();
-      handleClose();
-      setFormData({ barcode: '', name: '', category: '', cost_price: '', selling_price: '', stock: '' });
-    }
+    toast("Producto creado con éxito", "success");
+    onSuccess();
+    handleClose();
+    setFormData({ barcode: '', name: '', category: '', cost_price: '', selling_price: '', stock: '' });
   };
 
   return (

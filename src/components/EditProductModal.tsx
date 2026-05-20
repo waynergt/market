@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { X, Save, Loader2, Tag, Barcode, PowerOff, Power } from 'lucide-react';
+import { alertError, alertSuccess, confirmAction } from '../lib/alerts';
 
 interface Product {
   id: string;
@@ -10,7 +11,7 @@ interface Product {
   cost_price: number;
   selling_price: number;
   stock: number;
-  is_active: boolean; // NUEVO: Control de borrado lógico
+  is_active: boolean; 
 }
 
 interface Props {
@@ -48,6 +49,10 @@ export const EditProductModal = ({ isOpen, onClose, onSuccess, product }: Props)
     e.preventDefault();
     setLoading(true);
 
+    const newStock = parseInt(formData.stock);
+    const hasStockChanged = newStock !== product.stock;
+
+    // 1. Actualizamos el producto
     const { error } = await supabase
       .from('products')
       .update({
@@ -55,25 +60,44 @@ export const EditProductModal = ({ isOpen, onClose, onSuccess, product }: Props)
         category: formData.category,
         cost_price: parseFloat(formData.cost_price),
         selling_price: parseFloat(formData.selling_price),
-        stock: parseInt(formData.stock),
+        stock: newStock,
       })
       .eq('id', product.id);
 
-    setLoading(false);
     if (error) {
-      alert("Error al actualizar: " + error.message);
-    } else {
-      onSuccess();
-      onClose();
+      setLoading(false);
+      alertError("Error al actualizar", error.message);
+      return;
     }
+
+    // 2. Si el stock cambió, registramos en el Kardex
+    if (hasStockChanged) {
+      const changeAmount = newStock - product.stock;
+      await supabase.from('inventory_logs').insert({
+        product_id: product.id,
+        change_amount: changeAmount,
+        reason: 'Ajuste Manual en Inventario',
+        previous_stock: product.stock,
+        new_stock: newStock
+      });
+    }
+
+    setLoading(false);
+    alertSuccess('¡Actualizado!', 'Los datos del producto han sido guardados.');
+    onSuccess();
+    onClose();
   };
 
-  // NUEVO: Función para Descontinuar o Reactivar (Borrado Lógico)
+  // Función para Descontinuar o Reactivar con la alerta premium
   const handleToggleActive = async () => {
     const newStatus = !product.is_active;
     const actionText = newStatus ? "reactivar" : "descontinuar";
 
-    if (!window.confirm(`¿Estás seguro de que deseas ${actionText} "${product.name}"?`)) return;
+    const isConfirmed = await confirmAction(
+      `¿${actionText.toUpperCase()} PRODUCTO?`, 
+      `¿Seguro que deseas ${actionText} "${product.name}"?`
+    );
+    if (!isConfirmed) return;
     
     setLoading(true);
     const { error } = await supabase
@@ -83,9 +107,9 @@ export const EditProductModal = ({ isOpen, onClose, onSuccess, product }: Props)
 
     setLoading(false);
     if (error) {
-      alert(`Error al ${actionText}: ` + error.message);
+      alertError(`Error al ${actionText}`, error.message);
     } else {
-      alert(`Producto ${newStatus ? 'reactivado' : 'descontinuado'} con éxito.`);
+      alertSuccess('¡Listo!', `Producto ${newStatus ? 'reactivado' : 'descontinuado'} con éxito.`);
       onSuccess();
       onClose();
     }
